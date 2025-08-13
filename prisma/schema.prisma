@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum TeamColor {
+  RED
+  BLUE
+}
+
+model Player {
+  id        String   @id @default(uuid()) @db.Char(36)
+  name      String   @unique @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  killerEvents Event[]            @relation("killerEvents")
+  victimEvents Event[]            @relation("victimEvents")
+  matchStats   MatchPlayerStats[]
+  playerTeams  MatchPlayerTeam[]
+}
+
+model Match {
+  id        String    @id @default(uuid()) @db.Char(36)
+  matchCode String    @unique @db.VarChar(255)
+  startedAt DateTime
+  endedAt   DateTime?
+
+  events      Event[]
+  stats       MatchPlayerStats[]
+  playerTeams MatchPlayerTeam[]
+}
+
+model Event {
+  id String @id @default(uuid()) @db.Char(36)
+
+  matchId String @db.Char(36)
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  timestamp DateTime
+
+  killerId String? @db.Char(36)
+  killer   Player? @relation("killerEvents", fields: [killerId], references: [id])
+
+  victimId String @db.Char(36)
+  victim   Player @relation("victimEvents", fields: [victimId], references: [id])
+
+  weapon     String? @db.VarChar(50)
+  isFriendly Boolean @default(false)
+
+  @@index([killerId])
+  @@index([victimId])
+}
+
+model MatchPlayerStats {
+  id String @id @default(uuid()) @db.Char(36)
+
+  matchId String @db.Char(36)
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  playerId String @db.Char(36)
+  player   Player @relation(fields: [playerId], references: [id])
+
+  frags          Int     @default(0)
+  deaths         Int     @default(0)
+  maxStreak      Int     @default(0)
+  awards         Json    @default("[]")
+  favoriteWeapon String? @db.VarChar(50)
+
+  @@index([matchId])
+  @@index([playerId])
+}
+
+model MatchPlayerTeam {
+  id String @id @default(uuid()) @db.Char(36)
+
+  matchId String @db.Char(36)
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  playerId String @db.Char(36)
+  player   Player @relation(fields: [playerId], references: [id])
+
+  team TeamColor
+}
