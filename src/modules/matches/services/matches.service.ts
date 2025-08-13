@@ -4,8 +4,9 @@ import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class MatchesService {
-  constructor(private readonly parser: LogParserService,
-              private readonly prisma: PrismaService,
+  constructor(
+    private readonly parser: LogParserService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async preview(content: string) {
@@ -33,6 +34,81 @@ export class MatchesService {
     }));
 
     return { counts, matches: sanity, unknownLines, sample: events.slice(0, 10) };
+  }
+
+  async ingest(content: string) {
+    if (!content?.trim()) throw new BadRequestException('Arquivo vazio');
+    const { events } = this.parser.parse(content);
+
+    let currentMatchId: string | null = null;
+    let currentMatchCode: string | null = null;
+
+    let upsertedMatches = 0;
+    let upsertedPlayers = 0;
+    let upsertedTeams = 0;
+
+    for (const e of events) {
+      if (e.type === 'START') {
+        const match = await this.prisma.match.upsert({
+          where: { matchCode: e.matchCode },
+          create: { matchCode: e.matchCode, startedAt: e.ts, endedAt: null },
+          update: { startedAt: e.ts, endedAt: null },
+        });
+        currentMatchId = match.id;
+        currentMatchCode = match.matchCode;
+        upsertedMatches++;
+        continue;
+      }
+
+      if (!currentMatchId) {
+        if (e.type === 'END') {
+          throw new BadRequestException(`Encontrado END antes de START (matchCode=${(e as any).matchCode})`);
+        }
+        if (e.type === 'JOIN' || e.type === 'KILL' || e.type === 'WORLD') {
+          throw new BadRequestException(`Evento ${e.type} antes de START no log`);
+        }
+      }
+
+      if (e.type === 'JOIN') {
+        const player = await this.prisma.player.upsert({
+          where: { name: e.player },
+          update: {},
+          create: { name: e.player },
+        });
+        upsertedPlayers++;
+
+        const totalInMatch = await this.prisma.matchPlayerTeam.count({
+          where: { matchId: currentMatchId! },
+        });
+        if (totalInMatch >= 20) {
+          throw new BadRequestException(`Limite de 20 jogadores atingido na partida ${currentMatchCode}`);
+        }
+
+        const teamUpper = e.team.toUpperCase() as 'RED' | 'BLUE';
+        const teamCount = await this.prisma.matchPlayerTeam.count({
+          where: { matchId: currentMatchId!, team: teamUpper },
+        });
+        if (teamCount >= 10) {
+          throw new BadRequestException(`Time ${teamUpper} está cheio na partida ${currentMatchCode}`);
+        }
+
+        await this.prisma.matchPlayerTeam.upsert({
+          where: { matchId_playerId: { matchId: currentMatchId!, playerId: player.id } },
+          update: { team: teamUpper },
+          create: { matchId: currentMatchId!, playerId: player.id, team: teamUpper },
+        });
+        upsertedTeams++;
+        continue;
+      }
+
+    }
+
+    return {
+      ok: true,
+      upsertedMatches,
+      upsertedPlayers,
+      upsertedTeams,
+    };
   }
 
 }

@@ -79,6 +79,8 @@ model MatchPlayerStats {
 
   @@index([matchId])
   @@index([playerId])
+
+  @@unique([matchId, playerId])
 }
 
 model MatchPlayerTeam {
@@ -91,4 +93,6 @@ model MatchPlayerTeam {
   player   Player @relation(fields: [playerId], references: [id])
 
   team TeamColor
+
+  @@unique([matchId, playerId])
 }
