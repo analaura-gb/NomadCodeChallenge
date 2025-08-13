@@ -1,12 +1,18 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { LogParserService } from './log-parser.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class MatchesService {
-  constructor(private readonly parser: LogParserService) {}
+  constructor(private readonly parser: LogParserService,
+              private readonly prisma: PrismaService,
+  ) {}
 
   async preview(content: string) {
     if (!content?.trim()) throw new BadRequestException('Arquivo vazio');
+
+    await this.prisma.$queryRawUnsafe('SELECT 1');
+
     const { events, unknownLines } = this.parser.parse(content);
 
     const counts = { START: 0, JOIN: 0, KILL: 0, WORLD: 0, END: 0 };
