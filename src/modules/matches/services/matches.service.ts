@@ -46,6 +46,8 @@ export class MatchesService {
     let upsertedMatches = 0;
     let upsertedPlayers = 0;
     let upsertedTeams = 0;
+    let insertedEvents = 0;
+    let closedMatches = 0;
 
     for (const e of events) {
       if (e.type === 'START') {
@@ -61,12 +63,7 @@ export class MatchesService {
       }
 
       if (!currentMatchId) {
-        if (e.type === 'END') {
-          throw new BadRequestException(`Encontrado END antes de START (matchCode=${(e as any).matchCode})`);
-        }
-        if (e.type === 'JOIN' || e.type === 'KILL' || e.type === 'WORLD') {
-          throw new BadRequestException(`Evento ${e.type} antes de START no log`);
-        }
+        throw new BadRequestException(`Evento ${e.type} antes de START no log`);
       }
 
       if (e.type === 'JOIN') {
@@ -101,13 +98,67 @@ export class MatchesService {
         continue;
       }
 
+      if (e.type === 'KILL') {
+        const killer = await this.prisma.player.upsert({
+          where: { name: e.killer }, update: {}, create: { name: e.killer },
+        });
+        const victim = await this.prisma.player.upsert({
+          where: { name: e.victim }, update: {}, create: { name: e.victim },
+        });
+
+        await this.prisma.event.create({
+          data: {
+            matchId: currentMatchId,
+            timestamp: e.ts,
+            killerId: killer.id,
+            victimId: victim.id,
+            weapon: e.weapon,     
+            isFriendly: false,
+          },
+        });
+        insertedEvents++;
+        continue;
+      }
+
+      if (e.type === 'WORLD') {
+        const victim = await this.prisma.player.upsert({
+          where: { name: e.victim }, update: {}, create: { name: e.victim },
+        });
+
+        await this.prisma.event.create({
+          data: {
+            matchId: currentMatchId,
+            timestamp: e.ts,
+            killerId: null,
+            victimId: victim.id,
+            weapon: null,
+            isFriendly: false,
+          },
+        });
+        insertedEvents++;
+        continue;
+      }
+
+      if (e.type === 'END') {
+        await this.prisma.match.update({
+          where: { matchCode: e.matchCode },
+          data: { endedAt: e.ts },
+        });
+        currentMatchId = null;
+        currentMatchCode = null;
+        closedMatches++;
+        continue;
+      }
     }
 
+    
     return {
       ok: true,
       upsertedMatches,
       upsertedPlayers,
       upsertedTeams,
+      insertedEvents,
+      closedMatches
     };
   }
 
