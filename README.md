@@ -1,98 +1,176 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Nomad Code Challenge — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API em **NestJS + Prisma** para processar arquivos de log de partidas e consultar estatísticas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+O repositório contém:
+- Diagrama do banco de dados e relacionamentos
+- `schema.prisma` com as tabelas
+- Rotas para ingestão (POST) e consultas (GET)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Rotas e exemplos
 
-## Project setup
+### 1) Upload de logs — **POST** `/matches/upload`
 
+Recebe um arquivo `.txt` com várias partidas e:
+- cria/atualiza **Match**, **Player**, **MatchPlayerTeam**
+- insere **Event** (kills, world kills) e marca **Friendly Fire**
+- calcula **MatchPlayerStats** ao encerrar cada partida
+
+**Modo**:  
+- `mode=preview` (padrão): só parseia e retorna um resumo (não grava no banco)  
+- `mode=ingest`: processa e **grava tudo** no banco
+
+**Exemplos:**
+
+Multipart (arquivo):
 ```bash
-$ npm install
+curl -X POST "http://localhost:3000/matches/upload?mode=ingest"   -F "file=@/caminho/para/logs.txt"
 ```
 
-## Compile and run the project
-
+Body (texto bruto):
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+curl -X POST "http://localhost:3000/matches/upload?mode=preview"   -H "Content-Type: application/json"   -d '{"content":"23/04/2019 15:34:22 - New match 11348965 has started
+..."}'
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+**Resposta (preview, exemplo):**
+```json
+{
+  "counts": {"START":3,"JOIN":8,"KILL":6,"WORLD":3,"END":3},
+  "matches":[{"matchCode":"11348961","started":1,"ended":1,"ok":true}],
+  "unknownLines":[],
+  "sample":[{"type":"START","ts":"2019-04-23T18:34:22.000Z","matchCode":"11348965"}]
+}
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+**Resposta (ingest, exemplo):**
+```json
+{
+  "ok": true,
+  "upsertedMatches": 3,
+  "upsertedPlayers": 8,
+  "upsertedTeams": 8,
+  "insertedEvents": 9,
+  "closedMatches": 3,
+  "note": "Events gravados e partidas fechadas. FF e stats inclusos."
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+### 2) Ranking da partida — **GET** `/matches/:matchCode/ranking`
 
-Check out a few resources that may come in handy when working with NestJS:
+Retorna o ranking **ordenado** por: frags desc, deaths asc, playerId asc.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Exemplo:**
+```bash
+curl http://localhost:3000/matches/11349000/ranking | jq
+```
 
-## Support
+**Resposta (exemplo):**
+```json
+[
+  { "name":"Alice","frags":6,"deaths":0,"maxStreak":6,"awards":["Untouchable","Rampage-5-in-1m"],"favoriteWeapon":"M16" },
+  { "name":"Bob","frags":1,"deaths":2,"maxStreak":2,"awards":[],"favoriteWeapon":"SHOTGUN" }
+]
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+### 3) Arma favorita do vencedor — **GET** `/matches/:matchCode/favorite-weapon`
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Aplica os critérios de vencedor (frags desc, deaths asc, playerId asc) e retorna sua arma favorita.
 
-## License
+**Exemplo:**
+```bash
+curl http://localhost:3000/matches/11349000/favorite-weapon | jq
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+**Resposta (exemplo):**
+```json
+{ "winner":"Alice","favoriteWeapon":"M16" }
+```
+
+---
+
+### 4) Maior streak da partida — **GET** `/matches/:matchCode/top-streak`
+
+Retorna o jogador com a **maior sequência de frags válidos** sem morrer (critério de desempate: frags desc).
+
+**Exemplo:**
+```bash
+curl http://localhost:3000/matches/11349000/top-streak | jq
+```
+
+**Resposta (exemplo):**
+```json
+{ "name":"Alice","maxStreak":6 }
+```
+
+---
+
+### 5) Times da partida — **GET** `/matches/:matchCode/teams`
+
+Lista jogadores e seus times (RED/BLUE) para a partida.
+
+**Exemplo:**
+```bash
+curl http://localhost:3000/matches/11349000/teams | jq
+```
+
+**Resposta (exemplo):**
+```json
+[
+  { "team":"RED", "name":"Alice" },
+  { "team":"RED", "name":"Bob" },
+  { "team":"BLUE", "name":"Eve" }
+]
+```
+
+---
+
+### 6) Ranking global (todas as partidas) — **GET** `/players/ranking`
+
+Soma os stats de todas as partidas por jogador e ordena por:
+- total_frags desc
+- total_deaths asc
+- name asc (desempate)
+
+**Exemplo:**
+```bash
+curl http://localhost:3000/players/ranking | jq
+```
+
+**Resposta (exemplo):**
+```json
+[
+  { "name": "Alice", "total_frags": 12, "total_deaths": 1 },
+  { "name": "Roman", "total_frags": 7, "total_deaths": 3 }
+]
+```
+
+---
+
+## Notas sobre regras
+- **Frag válido**: kill de player **não**-FF.  
+- **Friendly Fire (FF)**: marca `isFriendly=true`, penaliza **-1 frag** do atirador, **não** conta como frag na streak/arma favorita.  
+- **WORLD**: só conta morte do victim.  
+- **Untouchable**: jogadores do **time vencedor** com `deaths=0`.  
+- **Rampage-5-in-1m**: 5 frags válidos em 60s.
+
+---
+
+## Exemplo de log (trecho)
+```
+25/04/2021 14:00:00 - New match 11349000 has started
+25/04/2021 14:00:05 - Alice join in team red
+...
+25/04/2021 14:10:01 - Alice killed Eve using M16
+25/04/2021 14:10:13 - Alice killed Frank using M16
+25/04/2021 14:10:25 - Alice killed Grace using M16
+25/04/2021 14:10:37 - Alice killed Henry using M16
+25/04/2021 14:10:49 - Alice killed Eve using M16
+25/04/2021 14:20:00 - Match 11349000 has ended
+```
