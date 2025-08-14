@@ -17,9 +17,38 @@
 24/04/2020 16:14:28 - Marcus join in team blue
 24/04/2020 16:14:31 - Jhon join in team red
 24/04/2020 16:14:34 - Bryan join in team blue
+24/04/2020 16:14:37 - Bryian join in team blue
 24/04/2020 16:26:12 - Roman killed Marcus using M16
 24/04/2020 16:35:56 - Marcus killed Jhon using AK47
 24/04/2020 17:12:34 - Roman killed Bryian using M16
 24/04/2020 18:26:14 - Bryan killed Marcus using AK47
 24/04/2020 19:36:33 - <WORLD> killed Marcus by DROWN
 24/04/2020 20:19:22 - Match 11348961 has ended
+
+25/04/2021 14:00:00 - New match 11349000 has started
+25/04/2021 14:00:05 - Alice join in team red
+25/04/2021 14:00:07 - Bob join in team red
+25/04/2021 14:00:09 - Carol join in team red
+25/04/2021 14:00:11 - Dave join in team red
+25/04/2021 14:00:14 - Eve join in team blue
+25/04/2021 14:00:16 - Frank join in team blue
+25/04/2021 14:00:18 - Grace join in team blue
+25/04/2021 14:00:20 - Henry join in team blue
+25/04/2021 14:05:00 - Frank killed Carol using AK47
+25/04/2021 14:05:20 - Alice killed Frank using M16
+25/04/2021 14:05:45 - <WORLD> killed Henry by FALL
+25/04/2021 14:06:10 - Bob killed Eve using SHOTGUN
+25/04/2021 14:06:30 - Bob killed Grace using SHOTGUN
+25/04/2021 14:06:45 - Bob killed Carol using SHOTGUN
+25/04/2021 14:10:01 - Alice killed Eve using M16
+25/04/2021 14:10:13 - Alice killed Frank using M16
+25/04/2021 14:10:25 - Alice killed Grace using M16
+25/04/2021 14:10:37 - Alice killed Henry using M16
+25/04/2021 14:10:49 - Alice killed Eve using M16
+25/04/2021 14:12:00 - Dave killed Frank using PISTOL
+25/04/2021 14:12:15 - Grace killed Dave using AK47
+25/04/2021 14:12:40 - Eve killed Bob using AK47
+25/04/2021 14:13:00 - Frank killed Eve using AK47
+25/04/2021 14:13:20 - Carol killed Bob using AK47
+25/04/2021 14:13:40 - <WORLD> killed Carol by DROWN
+25/04/2021 14:20:00 - Match 11349000 has ended

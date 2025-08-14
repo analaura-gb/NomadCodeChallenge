@@ -1,12 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { LogParserService } from './log-parser.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { StatsService } from './stats.service';
 
 @Injectable()
 export class MatchesService {
   constructor(
     private readonly parser: LogParserService,
     private readonly prisma: PrismaService,
+    private readonly stats: StatsService
   ) {}
 
   async preview(content: string) {
@@ -144,6 +146,20 @@ export class MatchesService {
           where: { matchCode: e.matchCode },
           data: { endedAt: e.ts },
         });
+
+        await this.prisma.$executeRawUnsafe(
+          `
+          UPDATE Event e
+          JOIN MatchPlayerTeam kt ON kt.matchId = e.matchId AND kt.playerId = e.killerId
+          JOIN MatchPlayerTeam vt ON vt.matchId = e.matchId AND vt.playerId = e.victimId
+          SET e.isFriendly = (kt.team = vt.team)
+          WHERE e.matchId = ? AND e.killerId IS NOT NULL
+          `,
+          currentMatchId,
+        );
+
+        await this.stats.computeForMatch(currentMatchId!);
+        
         currentMatchId = null;
         currentMatchCode = null;
         closedMatches++;
