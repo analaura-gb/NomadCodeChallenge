@@ -159,7 +159,7 @@ export class MatchesService {
         );
 
         await this.stats.computeForMatch(currentMatchId!);
-        
+
         currentMatchId = null;
         currentMatchCode = null;
         closedMatches++;
@@ -176,6 +176,59 @@ export class MatchesService {
       insertedEvents,
       closedMatches
     };
+  }
+
+   async getMatchRanking(matchCode: string) {
+    const match = await this.prisma.match.findUnique({ where: { matchCode } });
+    if (!match) return [];
+    const stats = await this.prisma.matchPlayerStats.findMany({
+      where: { matchId: match.id },
+      include: { player: { select: { name: true } } },
+      orderBy: [{ frags: 'desc' }, { deaths: 'asc' }, { playerId: 'asc' }],
+    });
+    return stats.map(s => ({
+      name: s.player.name,
+      frags: s.frags,
+      deaths: s.deaths,
+      maxStreak: s.maxStreak,
+      awards: s.awards,
+      favoriteWeapon: s.favoriteWeapon,
+    }));
+  }
+
+  async getFavoriteWeaponOfWinner(matchCode: string) {
+    const match = await this.prisma.match.findUnique({ where: { matchCode } });
+    if (!match) return null;
+    const winner = await this.prisma.matchPlayerStats.findFirst({
+      where: { matchId: match.id },
+      orderBy: [{ frags: 'desc' }, { deaths: 'asc' }, { playerId: 'asc' }],
+      include: { player: { select: { name: true } } },
+    });
+    if (!winner) return null;
+    return { winner: winner.player.name, favoriteWeapon: winner.favoriteWeapon };
+  }
+
+  async getTopStreak(matchCode: string) {
+    const match = await this.prisma.match.findUnique({ where: { matchCode } });
+    if (!match) return null;
+    const row = await this.prisma.matchPlayerStats.findFirst({
+      where: { matchId: match.id },
+      orderBy: [{ maxStreak: 'desc' }, { frags: 'desc' }, { playerId: 'asc' }],
+      include: { player: { select: { name: true } } },
+    });
+    if (!row) return null;
+    return { name: row.player.name, maxStreak: row.maxStreak };
+  }
+
+  async getTeams(matchCode: string) {
+    const match = await this.prisma.match.findUnique({ where: { matchCode } });
+    if (!match) return [];
+    const rows = await this.prisma.matchPlayerTeam.findMany({
+      where: { matchId: match.id },
+      include: { player: { select: { name: true } } },
+      orderBy: [{ team: 'asc' }, { player: { name: 'asc' } }],
+    });
+    return rows.map(r => ({ team: r.team, name: r.player.name }));
   }
 
 }

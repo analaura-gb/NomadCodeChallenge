@@ -1,4 +1,4 @@
-import { Controller, Post, UploadedFile, UseInterceptors, Body, Query } from '@nestjs/common';
+import { Controller, Post, UploadedFile, UseInterceptors, Body, Query, Get, Param } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Express } from 'express';
 import { MatchesService } from '../services/matches.service';
@@ -19,6 +19,26 @@ export class MatchesController {
     return m === 'ingest'
       ? this.service.ingest(content)
       : this.service.preview(content);
+  }
+
+  @Get(':matchCode/ranking')
+  ranking(@Param('matchCode') matchCode: string) {
+    return this.service.getMatchRanking(matchCode);
+  }
+
+  @Get(':matchCode/favorite-weapon')
+  favorite(@Param('matchCode') matchCode: string) {
+    return this.service.getFavoriteWeaponOfWinner(matchCode);
+  }
+
+  @Get(':matchCode/top-streak')
+  streak(@Param('matchCode') matchCode: string) {
+    return this.service.getTopStreak(matchCode);
+  }
+
+  @Get(':matchCode/teams')
+  teams(@Param('matchCode') matchCode: string) {
+    return this.service.getTeams(matchCode);
   }
 
 }
